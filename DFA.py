@@ -157,6 +157,8 @@ class MF_DFA_2D():
         
         if box_sizes[1] == False:
             max_size = int(np.min(img.shape) / 4)
+        elif box_sizes[1] < 0 :  
+            max_size = np.min(img.shape) 
         else:
             max_size = box_sizes[1]
 
@@ -171,9 +173,10 @@ class MF_DFA_2D():
         else:
             self.box_sizes = list(range(box_sizes[0],max_size, step_size))
 
-        self.box_sizes_log = np.log10(self.box_sizes)
+        
         self.F = []
         self.Points = []
+        new_box_sizes = []
         for size in self.box_sizes:
             DFF,points = dentred_flutation_function_2D(image = self.img,
                                               mask = self.mask,
@@ -181,8 +184,13 @@ class MF_DFA_2D():
                                               umbral = threshold,
                                               grade = grade,
                                               show = False)
+            if len(DFF) < abs(box_sizes[1]) and box_sizes[1] < 0:
+                break
+            new_box_sizes.append(size)
             self.F.append(DFF)
             self.Points.append(points)
+        self.box_sizes = new_box_sizes
+        self.box_sizes_log = np.log10(self.box_sizes)
 
 
     def F_to_spectrum(self, lim_q = [-5,5], dq = 0.25):
@@ -267,4 +275,5 @@ class MF_DFA_2D():
         f_ax4.set_ylabel('F(α)')
         f_ax4.set_xlabel('α')
         f_ax4.scatter(self.a,self.f, edgecolors='r', c = 'white', s = 35)
+        f_ax4.plot(self.a,self.f, 'r')
         plt.show()
