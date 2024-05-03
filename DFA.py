@@ -122,8 +122,91 @@ def multidim_cumsum(a):
 
 class MF_DFA_2D():
 
-    def __init__(self, img,
+    def __init__(self, img = [],
                  mask = [],
+                 FF = [],
+                 box_sizes = []
+                 ):
+        self.img = img
+        self.mask = mask
+        self.FF = FF
+        self.box_sizes = box_sizes
+        self.box_sizes_log = np.log10(self.box_sizes)
+        self.a = []
+        self.f = []
+        self.F_q = []
+
+    # def __init__(self, img,
+    #              mask = [],
+    #              mean = True,
+    #              cumsum = True,
+    #              box_sizes = [6, False],    # If False, max size = min(M,N)/4
+    #              step_size = 'bineo',       # 'Bineo' or a int
+    #              grade = 2,
+    #              threshold = 0.85,   
+    #              ):
+    #     self.img = img
+    #     self.mask = mask
+    #     self.F_q = []
+
+    #     if mean == True:
+    #         # Substract mean
+    #         if len(mask) >1:
+    #             media = np.mean(self.img[self.mask == 1])
+    #             self.img = np.array(self.img) - media
+    #             self.img[self.mask != 1] = 0
+    #         else:
+    #             media = np.mean(self.img)
+    #             self.img = np.array(self.img) - media
+
+    #     if cumsum == True:
+    #         # Accumulated sum
+    #         if len(mask) > 1:
+    #             self.img = multidim_cumsum(self.img) 
+    #             self.img[self.mask != 1] = 0
+    #         else:
+    #             self.img = multidim_cumsum(self.img) 
+
+
+        
+    #     if box_sizes[1] == False:
+    #         max_size = int(np.min(img.shape) / 4)
+    #     elif box_sizes[1] < 0 :  
+    #         max_size = np.min(img.shape) 
+    #     else:
+    #         max_size = box_sizes[1]
+
+            
+    #     if step_size == 'bineo':
+    #         s = box_sizes[0]
+    #         self.box_sizes = [s]
+    #         while True:
+    #             s = int(s * np.sqrt(np.sqrt(2)) ) + 1
+    #             if s > max_size: break
+    #             self.box_sizes.append(s)
+    #     else:
+    #         self.box_sizes = list(range(box_sizes[0],max_size, step_size))
+
+        
+    #     self.F = []
+    #     self.Points = []
+    #     new_box_sizes = []
+    #     for size in self.box_sizes:
+    #         DFF,points = dentred_flutation_function_2D(image = self.img,
+    #                                           mask = self.mask,
+    #                                           size = size,
+    #                                           umbral = threshold,
+    #                                           grade = grade,
+    #                                           show = False)
+    #         if len(DFF) < abs(box_sizes[1]) and box_sizes[1] < 0:
+    #             break
+    #         new_box_sizes.append(size)
+    #         self.F.append(DFF)
+    #         self.Points.append(points)
+    #     self.box_sizes = new_box_sizes
+    #     self.box_sizes_log = np.log10(self.box_sizes)
+
+    def img_to_FF(self, 
                  mean = True,
                  cumsum = True,
                  box_sizes = [6, False],    # If False, max size = min(M,N)/4
@@ -131,118 +214,129 @@ class MF_DFA_2D():
                  grade = 2,
                  threshold = 0.85,   
                  ):
-        self.img = img
-        self.mask = mask
         self.F_q = []
-
-        if mean == True:
-            # Substract mean
-            if len(mask) >1:
-                media = np.mean(self.img[self.mask == 1])
-                self.img = np.array(self.img) - media
-                self.img[self.mask != 1] = 0
-            else:
-                media = np.mean(self.img)
-                self.img = np.array(self.img) - media
-
-        if cumsum == True:
-            # Accumulated sum
-            if len(mask) > 1:
-                self.img = multidim_cumsum(self.img) 
-                self.img[self.mask != 1] = 0
-            else:
-                self.img = multidim_cumsum(self.img) 
-
-
-        
-        if box_sizes[1] == False:
-            max_size = int(np.min(img.shape) / 4)
-        elif box_sizes[1] < 0 :  
-            max_size = np.min(img.shape) 
+        if len(self.img) == 0:
+            print("There is no image to analyze, so it must be added manually or the class must be recreated.")
         else:
-            max_size = box_sizes[1]
+            if mean == True:
+                # Substract mean
+                if len(self.mask) >1:
+                    media = np.mean(self.img[self.mask == 1])
+                    self.img = np.array(self.img) - media
+                    self.img[self.mask != 1] = 0
+                else:
+                    media = np.mean(self.img)
+                    self.img = np.array(self.img) - media
+
+            if cumsum == True:
+                # Accumulated sum
+                if len(self.mask) > 1:
+                    self.img = multidim_cumsum(self.img) 
+                    self.img[self.mask != 1] = 0
+                else:
+                    self.img = multidim_cumsum(self.img) 
+
 
             
-        if step_size == 'bineo':
-            s = box_sizes[0]
-            self.box_sizes = [s]
-            while True:
-                s = int(s * np.sqrt(np.sqrt(2)) ) + 1
-                if s > max_size: break
-                self.box_sizes.append(s)
+            if box_sizes[1] == False:
+                max_size = int(np.min(self.img.shape) / 4)
+            elif box_sizes[1] < 0 :  
+                max_size = np.min(self.img.shape) 
+            else:
+                max_size = box_sizes[1]
+
+                
+            if step_size == 'bineo':
+                s = box_sizes[0]
+                self.box_sizes = [s]
+                while True:
+                    s = int(s * np.sqrt(np.sqrt(2)) ) + 1
+                    if s > max_size: break
+                    self.box_sizes.append(s)
+            else:
+                self.box_sizes = list(range(box_sizes[0],max_size, step_size))
+
+            
+            self.FF = []
+            self.Points = []
+            new_box_sizes = []
+            for size in self.box_sizes:
+                DFF,points = dentred_flutation_function_2D(image = self.img,
+                                                mask = self.mask,
+                                                size = size,
+                                                umbral = threshold,
+                                                grade = grade,
+                                                show = False)
+                if len(DFF) < abs(box_sizes[1]) and box_sizes[1] < 0:
+                    break
+                new_box_sizes.append(size)
+                self.FF.append(DFF)
+                self.Points.append(points)
+            self.box_sizes = new_box_sizes
+            self.box_sizes_log = np.log10(self.box_sizes)
+        
+  
+
+
+    def FF_to_spectrum(self, lim_q = [-5,5], dq = 0.25):
+        if len(self.FF) == 0:
+            print("There is no functions for fluctuations (self.FF),  they need to be added manually or run img_to_FF")
+        elif len(self.box_sizes) == 0:
+            print("There is no box sizes (self.box_sizes),  they need to be added manually or run img_to_FF")
         else:
-            self.box_sizes = list(range(box_sizes[0],max_size, step_size))
+            
+            self.Q = np.arange( lim_q[0]-dq, lim_q[1] + 2*dq, dq)
+            self.F_q_log = [[] for i in self.Q]
+            self.F_q = [[] for i in self.Q]
+            for F in self.FF:
+                for j,q in enumerate(self.Q):
+                    if q == 0:
+                        dentred_fluctuation = np.exp(np.mean(np.log(np.array(F))))
+                        self.F_q[j].append(dentred_fluctuation) 
+                        self.F_q_log[j].append(np.log10(dentred_fluctuation))
+                        
+                    else:
+                        dentred_fluctuation = np.mean(np.array(F)**(q))**(1.0/q)
+                        self.F_q[j].append(dentred_fluctuation)
+                        self.F_q_log[j].append(np.log10(dentred_fluctuation))
 
+            self.holder = []
+            self.tau = []
+            for q, F_q in zip(self.Q, self.F_q_log):
+                h_q = np.polyfit(self.box_sizes_log, F_q, 1)[0]
+                self.holder.append(h_q)
+                self.tau.append(q * h_q - 2)
+            
+            self.a = []
+            self.f = []
+            for i in range(1 , len(self.Q) -1):
+                a = (self.tau[i+1] - self.tau[i-1]) / (2 * dq)
+                self.a.append(a)
+                f = self.Q[i] * a - self.tau[i]
+                self.f.append(f)
+
+        def Features(self):
+            if len(self.a) == 0:
+                self.FF_to_spectrum()
+                
+            C2,C1,C0 = np.polyfit(self.Q,self.tau,2)
+            self.features_vals = [self.a[self.f.index(max(self.f))],            # a_star
+                                min(self.a),                                  # a_min
+                                max(self.a),                                  # a_max
+                                max(self.a) - min(self.a),                    # width
+                                max(self.f) - min(self.f),                    # height
+                                sum([np.linalg.norm(np.array((self.a[i-1],self.f[i-1])) - np.array((self.a[1],self.f[1]))) for i in range(1,len(self.a))]),
+                                - C0,                     # Lineal function C0 + C1X + C2X^2 of tau
+                                C1,
+                                - 2 * C2
+                                ]
+            self.features_names = ['a_star','a_min','a_max','width','height','length', 'C0' ,'C1','C2']
+            
+            return  self.features_names, self.features_vals
         
-        self.F = []
-        self.Points = []
-        new_box_sizes = []
-        for size in self.box_sizes:
-            DFF,points = dentred_flutation_function_2D(image = self.img,
-                                              mask = self.mask,
-                                              size = size,
-                                              umbral = threshold,
-                                              grade = grade,
-                                              show = False)
-            if len(DFF) < abs(box_sizes[1]) and box_sizes[1] < 0:
-                break
-            new_box_sizes.append(size)
-            self.F.append(DFF)
-            self.Points.append(points)
-        self.box_sizes = new_box_sizes
-        self.box_sizes_log = np.log10(self.box_sizes)
-
-
-    def F_to_spectrum(self, lim_q = [-5,5], dq = 0.25):
-        self.Q = np.arange( lim_q[0]-dq, lim_q[1] + 2*dq, dq)
-        self.F_q_log = [[] for i in self.Q]
-        self.F_q = [[] for i in self.Q]
-        for F in self.F:
-            for j,q in enumerate(self.Q):
-                if q == 0:
-                    dentred_fluctuation = np.exp(np.mean(np.log(np.array(F))))
-                    self.F_q[j].append(dentred_fluctuation) 
-                    self.F_q_log[j].append(np.log10(dentred_fluctuation))
-                    
-                else:
-                    dentred_fluctuation = np.mean(np.array(F)**(q))**(1.0/q)
-                    self.F_q[j].append(dentred_fluctuation)
-                    self.F_q_log[j].append(np.log10(dentred_fluctuation))
-
-        self.holder = []
-        self.tau = []
-        for q, F_q in zip(self.Q, self.F_q_log):
-            h_q = np.polyfit(self.box_sizes_log, F_q, 1)[0]
-            self.holder.append(h_q)
-            self.tau.append(q * h_q - 2)
-        
-        self.a = []
-        self.f = []
-        for i in range(1 , len(self.Q) -1):
-            a = (self.tau[i+1] - self.tau[i-1]) / (2 * dq)
-            self.a.append(a)
-            f = self.Q[i] * a - self.tau[i]
-            self.f.append(f)
-
-    def Features(self):
-        C2,C1,C0 = np.polyfit(self.Q,self.tau,2)
-        self.features_vals = [self.a[self.f.index(max(self.f))],            # a_star
-                              min(self.a),                                  # a_min
-                              max(self.a),                                  # a_max
-                              max(self.a) - min(self.a),                    # width
-                              max(self.f) - min(self.f),                    # height
-                              sum([np.linalg.norm(np.array((self.a[i-1],self.f[i-1])) - np.array((self.a[1],self.f[1]))) for i in range(1,len(self.a))]),
-                              - C0,                     # Lineal function C0 + C1X + C2X^2 of tau
-                              C1,
-                              - 2 * C2
-                              ]
-        self.features_names = ['a_star','a_min','a_max','width','height','length', 'C0' ,'C1','C2']
-        
-        return  self.features_names, self.features_vals
-    
     def Show(self):
         if len(self.F_q) == 0:
-            self.F_to_spectrum()
+            self.FF_to_spectrum()
 
         fig = plt.figure(constrained_layout=False, figsize=[9,7])
         fig.suptitle('MF-DFA')
