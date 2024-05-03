@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
+# from mpl_toolkits import mplot3d
 from sklearn import linear_model
 import cv2
+
 
 def trend_surface(surface , grade = 1, show = False):
     x,y = surface.shape
@@ -136,76 +137,6 @@ class MF_DFA_2D():
         self.f = []
         self.F_q = []
 
-    # def __init__(self, img,
-    #              mask = [],
-    #              mean = True,
-    #              cumsum = True,
-    #              box_sizes = [6, False],    # If False, max size = min(M,N)/4
-    #              step_size = 'bineo',       # 'Bineo' or a int
-    #              grade = 2,
-    #              threshold = 0.85,   
-    #              ):
-    #     self.img = img
-    #     self.mask = mask
-    #     self.F_q = []
-
-    #     if mean == True:
-    #         # Substract mean
-    #         if len(mask) >1:
-    #             media = np.mean(self.img[self.mask == 1])
-    #             self.img = np.array(self.img) - media
-    #             self.img[self.mask != 1] = 0
-    #         else:
-    #             media = np.mean(self.img)
-    #             self.img = np.array(self.img) - media
-
-    #     if cumsum == True:
-    #         # Accumulated sum
-    #         if len(mask) > 1:
-    #             self.img = multidim_cumsum(self.img) 
-    #             self.img[self.mask != 1] = 0
-    #         else:
-    #             self.img = multidim_cumsum(self.img) 
-
-
-        
-    #     if box_sizes[1] == False:
-    #         max_size = int(np.min(img.shape) / 4)
-    #     elif box_sizes[1] < 0 :  
-    #         max_size = np.min(img.shape) 
-    #     else:
-    #         max_size = box_sizes[1]
-
-            
-    #     if step_size == 'bineo':
-    #         s = box_sizes[0]
-    #         self.box_sizes = [s]
-    #         while True:
-    #             s = int(s * np.sqrt(np.sqrt(2)) ) + 1
-    #             if s > max_size: break
-    #             self.box_sizes.append(s)
-    #     else:
-    #         self.box_sizes = list(range(box_sizes[0],max_size, step_size))
-
-        
-    #     self.F = []
-    #     self.Points = []
-    #     new_box_sizes = []
-    #     for size in self.box_sizes:
-    #         DFF,points = dentred_flutation_function_2D(image = self.img,
-    #                                           mask = self.mask,
-    #                                           size = size,
-    #                                           umbral = threshold,
-    #                                           grade = grade,
-    #                                           show = False)
-    #         if len(DFF) < abs(box_sizes[1]) and box_sizes[1] < 0:
-    #             break
-    #         new_box_sizes.append(size)
-    #         self.F.append(DFF)
-    #         self.Points.append(points)
-    #     self.box_sizes = new_box_sizes
-    #     self.box_sizes_log = np.log10(self.box_sizes)
-
     def img_to_FF(self, 
                  mean = True,
                  cumsum = True,
@@ -278,17 +209,26 @@ class MF_DFA_2D():
   
 
 
-    def FF_to_spectrum(self, lim_q = [-5,5], dq = 0.25):
+    def FF_to_spectrum(self, lim_q = [-5,5], dq = 0.25, min_size = False, max_size = False ):
         if len(self.FF) == 0:
             print("There is no functions for fluctuations (self.FF),  they need to be added manually or run img_to_FF")
         elif len(self.box_sizes) == 0:
             print("There is no box sizes (self.box_sizes),  they need to be added manually or run img_to_FF")
         else:
-            
+
+            if min_size != False:
+                min_size = list(np.abs(np.array(self.box_sizes) - min_size))
+                self.index_min = min_size.index(min(min_size))
+                max_size = list(np.abs(np.array(self.box_sizes) - max_size))
+                self.index_max = max_size.index(min(max_size)) + 1
+            else:
+                self.index_min = 0
+                self.index_max = len(self.box_sizes) + 1
+
             self.Q = np.arange( lim_q[0]-dq, lim_q[1] + 2*dq, dq)
             self.F_q_log = [[] for i in self.Q]
             self.F_q = [[] for i in self.Q]
-            for F in self.FF:
+            for F in self.FF[self.index_min:self.index_max]:
                 for j,q in enumerate(self.Q):
                     if q == 0:
                         dentred_fluctuation = np.exp(np.mean(np.log(np.array(F))))
@@ -303,7 +243,7 @@ class MF_DFA_2D():
             self.holder = []
             self.tau = []
             for q, F_q in zip(self.Q, self.F_q_log):
-                h_q = np.polyfit(self.box_sizes_log, F_q, 1)[0]
+                h_q = np.polyfit(self.box_sizes_log[self.index_min:self.index_max], F_q, 1)[0]
                 self.holder.append(h_q)
                 self.tau.append(q * h_q - 2)
             
@@ -315,28 +255,29 @@ class MF_DFA_2D():
                 f = self.Q[i] * a - self.tau[i]
                 self.f.append(f)
 
-        def Features(self):
-            if len(self.a) == 0:
-                self.FF_to_spectrum()
-                
-            C2,C1,C0 = np.polyfit(self.Q,self.tau,2)
-            self.features_vals = [self.a[self.f.index(max(self.f))],            # a_star
-                                min(self.a),                                  # a_min
-                                max(self.a),                                  # a_max
-                                max(self.a) - min(self.a),                    # width
-                                max(self.f) - min(self.f),                    # height
-                                sum([np.linalg.norm(np.array((self.a[i-1],self.f[i-1])) - np.array((self.a[1],self.f[1]))) for i in range(1,len(self.a))]),
-                                - C0,                     # Lineal function C0 + C1X + C2X^2 of tau
-                                C1,
-                                - 2 * C2
-                                ]
-            self.features_names = ['a_star','a_min','a_max','width','height','length', 'C0' ,'C1','C2']
+    def Features(self):
+        if len(self.a) == 0:
+            self.FF_to_spectrum()
             
-            return  self.features_names, self.features_vals
+        C2,C1,C0 = np.polyfit(self.Q,self.tau,2)
+        self.features_vals = [self.a[self.f.index(max(self.f))],            # a_star
+                            min(self.a),                                  # a_min
+                            max(self.a),                                  # a_max
+                            max(self.a) - min(self.a),                    # width
+                            max(self.f) - min(self.f),                    # height
+                            sum([np.linalg.norm(np.array((self.a[i-1],self.f[i-1])) - np.array((self.a[1],self.f[1]))) for i in range(1,len(self.a))]),
+                            - C0,                     # Lineal function C0 + C1X + C2X^2 of tau
+                            C1,
+                            - 2 * C2
+                            ]
+        self.features_names = ['a_star','a_min','a_max','width','height','length', 'C0' ,'C1','C2']
         
-    def Show(self):
+        return  self.features_names, self.features_vals
+        
+    def Show(self, path_save = ''):
         if len(self.F_q) == 0:
             self.FF_to_spectrum()
+        plt.ioff()
 
         fig = plt.figure(constrained_layout=False, figsize=[9,7])
         fig.suptitle('MF-DFA')
@@ -349,12 +290,12 @@ class MF_DFA_2D():
         f_ax1.set_xscale('log')
         f_ax1.set_yscale('log')
         for F_q in self.F_q:
-            f_ax1.plot(self.box_sizes, F_q)
+            f_ax1.plot(self.box_sizes[self.index_min:self.index_max], F_q)
   
         gs2 = fig.add_gridspec(nrows=4, ncols=1, left=0.7, right=0.98, hspace=0.00)
         f_ax2 = fig.add_subplot(gs2[0, :])
         f_ax2.grid(True)
-        f_ax2.set_ylabel('H(q)')
+        f_ax2.set_ylabel('h(q)')
         f_ax2.scatter(self.Q, self.holder, edgecolors='b', c = 'white', s = 15)
 
         f_ax3 = fig.add_subplot(gs2[1, :])
@@ -366,8 +307,13 @@ class MF_DFA_2D():
         gs3 = fig.add_gridspec(nrows=4, ncols=1, left=0.7, right=0.98, hspace=0.560)
         f_ax4 = fig.add_subplot(gs3[2:, :])
         f_ax4.grid(True)
-        f_ax4.set_ylabel('F(α)')
+        f_ax4.set_ylabel('f(α)')
         f_ax4.set_xlabel('α')
         f_ax4.scatter(self.a,self.f, edgecolors='r', c = 'white', s = 35)
         f_ax4.plot(self.a,self.f, 'r')
-        plt.show()
+
+        if path_save:
+            plt.savefig(path_save, bbox_inches='tight')
+        else:
+            plt.show()
+        plt.close()
